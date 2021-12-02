@@ -2,15 +2,15 @@
 #include <map>
 #include <set>
 #include <iostream>
-#include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <list>
+#include <cmath>
 
 using namespace std;
 
-string convertToBinary(const string hex) {
-    string binary = "";
+string convertToBinary(const string& hex) {
+    string binary;
     for (int i = 2; i < hex.size(); ++i) {
         // loops through the hex string and add to binary string with corresponding 4 bit binary
         switch (hex[i]) {
@@ -73,7 +73,7 @@ string convertToBinary(const string hex) {
         }
     }
     // check that the binary is a multiple of 4, if not then add leading 0s until it is
-    string leading0s = "";
+    string leading0s;
     while (binary.size() % 4 != 0) {
         leading0s = "0" + leading0s;
         binary = leading0s + binary;
@@ -82,7 +82,7 @@ string convertToBinary(const string hex) {
 }
 
 // read function for direct-mapped
-void readTraceFile(const int replaceType, const string fileName, map<string, string>& tagMap, int& hits, int& misses, int& bytesPerBlock, int& numSets) {
+void readTraceFile(const string& fileName, map<string, string>& tagMap, int& hits, int& misses, int& bytesPerBlock, int& numSets) {
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     ifstream inFile(fileName);
     string addressLine;
@@ -90,18 +90,46 @@ void readTraceFile(const int replaceType, const string fileName, map<string, str
     while(getline(inFile, addressLine)) {
         istringstream stream(addressLine);
         string addressHex;
-        string ignore;
-        getline(stream, ignore, ' ');
+        string ignoreThis;
+        getline(stream, ignoreThis, ' ');
         // ignores the first string obtained by the first get line since we don't care about that value from the trace files
         getline(stream, addressHex, ' ');
         // converting the addressHex to Binary
         addressBinary = convertToBinary(addressHex);
-
+        // for direct map, tag is address - offset (bytesPerBlock) - log2(numSets);
+        int lineOffset = log2(numSets);
+        int tagOffset = addressBinary.size() - bytesPerBlock - lineOffset;
+        // grabbing the lineBits
+        string lineBits;
+        for (int i = tagOffset; i < addressBinary.size() - bytesPerBlock; ++i) {
+            lineBits += addressBinary[i];
+        }
+        string currentTag;
+        for (int i = 0; i < tagOffset; ++i) {
+            currentTag += addressBinary[i];
+        }
+        if (tagMap.find(lineBits) != tagMap.end()) {
+            // if the tagMap does already have a value at this line bit
+            // check if the tag at this line bit matches with the currentTag, if so then it's a hit
+            if (tagMap.find(lineBits)->second == currentTag) {
+                ++hits;
+            }
+            // else it's a miss and replace the old tag with the new tag;
+            else {
+                ++misses;
+                tagMap.find(lineBits)->second = currentTag;
+            }
+        }
+        else {
+            // else this line bit is empty, so it's a miss and add in a new tag at this line bit
+            ++misses;
+            tagMap.insert(make_pair(lineBits, currentTag));
+        }
     }
 }
 // read function for fully-associative
 // TODO: Ask if my logic behind the LRU for fully-associative is correct
-void readTraceFile(const int replaceType, const string& fileName, set<string> tags, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock) {
+void readTraceFile(const int& replaceType, const string& fileName, set<string> tags, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock) {
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     ifstream inFile(fileName);
     string addressLine;
@@ -110,8 +138,8 @@ void readTraceFile(const int replaceType, const string& fileName, set<string> ta
     while (getline(inFile, addressLine)) {
         istringstream stream(addressLine);
         string addressHex;
-        string ignore;
-        getline(stream, ignore, ' ');
+        string ignoreThis;
+        getline(stream, ignoreThis, ' ');
         // ignores the first string obtained by the first get line since we don't care about that value from the trace files
         getline(stream, addressHex, ' ');
         // converting the addressHex to Binary
@@ -154,12 +182,32 @@ void readTraceFile(const int replaceType, const string& fileName, set<string> ta
         }
     }
 }
+// read function for set-associative
+void readTraceFile(const int& replaceType, const string& fileName, map<string, vector<string>>& tagMap, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock, const int& numSets) {
+    // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
+    ifstream inFile(fileName);
+    string addressLine;
+    string addressBinary;
+    list<string> tagsList;
+    while (getline(inFile, addressLine)) {
+        istringstream stream(addressLine);
+        string addressHex;
+        string ignoreThis;
+        getline(stream, ignoreThis, ' ');
+        // ignores the first string obtained by the first get line since we don't care about that value from the trace files
+        getline(stream, addressHex, ' ');
+        // converting the addressHex to Binary
+        addressBinary = convertToBinary(addressHex);
+
+    }
+}
+
 int main() {
     // Initiating the parameters for the cache simulation
     string fileName = "gcc.trace"; set<string> fullTags; map<string, string> tags;
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     // TODO: Change these hardcoded values back to allowing the user to choose
-    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock = 4; int numSets = 1; int replaceType = 1;
+    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock = 8; int numSets = 64; int replaceType = 1;
     /*// Getting file name and cache type from the user
     cout << "Enter the file name: ";
     cin >> fileName;
@@ -167,10 +215,9 @@ int main() {
     cin >> cacheType;
     */
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
-    readTraceFile(2, "traces/" + fileName, fullTags, hits, misses, numBlock, bytesPerBlock);
+    readTraceFile("traces/" + fileName, tags, hits, misses, bytesPerBlock, numSets);
     cout << "Hits: " << hits << endl;
     cout << "Misses: " << misses << endl;
     cout << "Hit/Miss Ratio: " << (double) hits / (double) misses << endl;
-
     return 0;
 }
