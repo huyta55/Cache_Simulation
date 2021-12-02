@@ -1,0 +1,4 @@
+/Applications/CLion.app/Contents/bin/cmake/mac/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/Applications/CLion.app/Contents/bin/ninja/mac/ninja -G Ninja "/Volumes/Huy SSD/College Stoof/Current Classes/CDA3101/Cache_Simulation"
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /Volumes/Huy SSD/College Stoof/Current Classes/CDA3101/Cache_Simulation/cmake-build-debug
