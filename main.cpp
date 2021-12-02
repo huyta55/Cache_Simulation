@@ -6,6 +6,7 @@
 #include <sstream>
 #include <list>
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
@@ -82,9 +83,10 @@ string convertToBinary(const string& hex) {
 }
 
 // read function for direct-mapped
-void readTraceFile(const string& fileName, map<string, string>& tagMap, int& hits, int& misses, int& bytesPerBlock, int& numSets) {
-    // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
+void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPerBlock, int& numSets) {
+    // cache types: 2 (direct-mapped)
     ifstream inFile(fileName);
+    map<string, string> tagMap;
     string addressLine;
     string addressBinary;
     while(getline(inFile, addressLine)) {
@@ -129,12 +131,13 @@ void readTraceFile(const string& fileName, map<string, string>& tagMap, int& hit
 }
 // read function for fully-associative
 // TODO: Ask if my logic behind the LRU for fully-associative is correct
-void readTraceFile(const int& replaceType, const string& fileName, set<string> tags, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock) {
-    // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
+void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock) {
+    // cache types: 1 (fully associative)
     ifstream inFile(fileName);
     string addressLine;
     string addressBinary;
     list<string> tagsList;
+    set<string> tags;
     while (getline(inFile, addressLine)) {
         istringstream stream(addressLine);
         string addressHex;
@@ -154,7 +157,7 @@ void readTraceFile(const int& replaceType, const string& fileName, set<string> t
             ++hits;
             if (replaceType == 2) {
                 // go through the list and move the one that hits to the back of the list
-                list<string>::iterator iter = tagsList.begin();
+                auto iter = tagsList.begin();
                 while (iter != tagsList.end()) {
                     if (*iter == currentTag) {
                         string temp = *iter;
@@ -183,12 +186,13 @@ void readTraceFile(const int& replaceType, const string& fileName, set<string> t
     }
 }
 // read function for set-associative
-void readTraceFile(const int& replaceType, const string& fileName, map<string, vector<string>>& tagMap, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock, const int& numSets) {
-    // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
+void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock, const int& numSets) {
+    // cache types: 3 (set-associative)
     ifstream inFile(fileName);
     string addressLine;
     string addressBinary;
-    list<string> tagsList;
+    map<string, vector<string>> tagMap;
+    map<string, list<string>> tagsList;
     while (getline(inFile, addressLine)) {
         istringstream stream(addressLine);
         string addressHex;
@@ -198,16 +202,88 @@ void readTraceFile(const int& replaceType, const string& fileName, map<string, v
         getline(stream, addressHex, ' ');
         // converting the addressHex to Binary
         addressBinary = convertToBinary(addressHex);
-
+        // for set-associative tag = address - offset(bytesPerBlock) - setField(number of Sets)
+        // getting the setField
+        int setIndex = log2(numSets);
+        // getting the set
+        string currentSet;
+        for (int i = addressBinary.size() - bytesPerBlock - setIndex; i < addressBinary.size() - bytesPerBlock; ++i) {
+            currentSet += addressBinary[i];
+        }
+        // grabbing the tag
+        string currentTag;
+        for (int i = 0; i < addressBinary.size() - bytesPerBlock - setIndex; ++i) {
+            currentTag += addressBinary[i];
+        }
+        // Checking whether the cache is full
+        if (tagMap.find(currentSet) != tagMap.end()) {
+            list<string>& tList = tagsList.find(currentSet)->second;
+            vector<string>& tags = tagMap.find(currentSet)->second;
+            bool hit = false;
+            // iterate through the vector at the set to see if the tag matches any of the ones in the set to hit
+            for (int i = 0; i < tags.size(); ++i) {
+                if (tags[i] == currentTag) {
+                    hit = true;
+                }
+            }
+            if (hit) {
+                ++hits;
+                if (replaceType == 2) {
+                    // go through the list and move the one that hits to the back of the list
+                    auto iter = tList.begin();
+                    while (iter != tList.end()) {
+                        if (*iter == currentTag) {
+                            string temp = *iter;
+                            tList.erase(iter);
+                            tList.push_back(temp);
+                            break;
+                        }
+                        ++iter;
+                    }
+                }
+            }
+            // else if the set is in the map, check whether the vector of strings is full
+            else if (tags.size() >= numBlocks) {
+                // if full, then replace using desired FIFO or LRU
+                ++misses;
+                auto removalIndex = tags.begin();
+                for (int i = 0; i < tags.size(); ++i) {
+                    if (tags[i] == tList.front()) {
+                        removalIndex += i;
+                    }
+                }
+                tags.erase(removalIndex);
+                tList.pop_front();
+                tags.push_back(currentTag);
+                tList.push_back(currentTag);
+            }
+            // else there is space in the vector, so add the tag
+            else {
+                ++misses;
+                tList.push_back(currentTag);
+                tags.push_back(currentTag);
+            }
+        }
+        // else add the new set and tag
+        else {
+            ++misses;
+            vector<string> temp;
+            temp.push_back(currentTag);
+            tagMap.insert(make_pair(currentSet, temp));
+            list<string> tempList;
+            tempList.push_back(currentTag);
+            tagsList.insert((make_pair(currentSet, tempList)));
+            cout << "";
+        }
     }
 }
 
 int main() {
     // Initiating the parameters for the cache simulation
-    string fileName = "gcc.trace"; set<string> fullTags; map<string, string> tags;
+    string fileName = "gcc.trace";
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     // TODO: Change these hardcoded values back to allowing the user to choose
-    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock = 8; int numSets = 64; int replaceType = 1;
+    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock = 4; int numSets = 1; int replaceType = 1;
     /*// Getting file name and cache type from the user
     cout << "Enter the file name: ";
     cin >> fileName;
@@ -215,9 +291,19 @@ int main() {
     cin >> cacheType;
     */
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
-    readTraceFile("traces/" + fileName, tags, hits, misses, bytesPerBlock, numSets);
-    cout << "Hits: " << hits << endl;
-    cout << "Misses: " << misses << endl;
-    cout << "Hit/Miss Ratio: " << (double) hits / (double) misses << endl;
+    readTraceFile(2,"traces/" + fileName, hits, misses, numBlock, bytesPerBlock, numSets);
+    cout << "Hits Set: " << hits << endl;
+    cout << "Misses Set: " << misses << endl;
+    cout << "Hit/Miss Set Ratio: " << (double) hits / (double) misses << endl;
+    hits = 0; misses = 0;
+    readTraceFile(2,"traces/" + fileName, hits, misses, numBlock, bytesPerBlock);
+    cout << "Hits Full: " << hits << endl;
+    cout << "Misses Full: " << misses << endl;
+    cout << "Hit/Miss Full Ratio: " << (double) hits / (double) misses << endl;
+    hits = 0; misses = 0;
+    readTraceFile("traces/" + fileName, hits, misses, bytesPerBlock, numSets);
+    cout << "Hits Direct: " << hits << endl;
+    cout << "Misses Direct: " << misses << endl;
+    cout << "Hit/Miss Direct Ratio: " << (double) hits / (double) misses << endl;
     return 0;
 }
