@@ -4,14 +4,18 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 
 using namespace std;
 
-string convertToBinary(string hex) {
+string convertToBinary(const string hex) {
     string binary = "";
-    for (int i = 0; i < hex.size(); ++i) {
+    for (int i = 2; i < hex.size(); ++i) {
         // loops through the hex string and add to binary string with corresponding 4 bit binary
         switch (hex[i]) {
+            case '0':
+                binary += "0000";
+                break;
             case '1':
                 binary += "0001";
                 break;
@@ -75,37 +79,55 @@ string convertToBinary(string hex) {
     }
     return binary;
 }
+string getTag(const int cacheType, string addressBinary) {
+    switch (cacheType) {
+        case 1:
+            // fully-associative
+
+            break;
+        case 2:
+            // direct-mapped
+
+            break;
+        case 3:
+            // set-associative
+            break;
+        default:
+            throw runtime_error("invalid cache type");
+    }
+}
 
 void readTraceFile(const int cacheType, const string fileName, map<string, string>& address, int& hits, int& misses) {
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     ifstream inFile(fileName);
-    string lineFromFile;
-    while(getline(inFile, lineFromFile)) {
+    string addressLine;
+    string addressBinary;
+    while(getline(inFile, addressLine)) {
+        istringstream stream(addressLine);
+        string addressHex;
+        string ignore;
+        getline(stream, ignore, ' ');
+        // ignores the first string obtained by the first get line since we don't care about that value from the trace files
+        getline(stream, addressHex, ' ');
+        // converting the addressHex to Binary
+        addressBinary = convertToBinary(addressHex);
+        // Depending on the different cache type that the user selects, the way the tag is separated from the address is different
 
     }
-    // Depending on the different cache type that the user selects, the way the tag is separated from the address is different
-    switch (cacheType) {
-        case 1:
 
-            break;
-        case 2:
-
-            break;
-        default:
-            break;
-    }
 
 }
 int main() {
     // Initiating the parameters for the cache simulation
-    map<string, string> address; string fileName = "";
+    map<string, string> address; string fileName = "read01.trace";
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
-    int hits = 0; int misses = 0; int cacheType = 0; int numBlock; int bytesPerBlock;
-    // Getting file name and cache type from the user
+    int hits = 0; int misses = 0; int cacheType = 1; int numBlock; int bytesPerBlock;
+    /*// Getting file name and cache type from the user
     cout << "Enter the file name: ";
     cin >> fileName;
     cout << "Enter the cache type: ";
     cin >> cacheType;
+    */
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     readTraceFile(cacheType, "traces/" + fileName, address, hits, misses);
     return 0;
