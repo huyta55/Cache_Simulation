@@ -282,8 +282,7 @@ int main() {
     // Initiating the parameters for the cache simulation
     string fileName = "gcc.trace";
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
-    // TODO: Change these hardcoded values back to allowing the user to choose
-    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock; int numSets; int replaceType = 1;
+    int hits = 0; int misses = 0; int cacheType; int numBlock; int bytesPerBlock; int numSets; int replaceType = 1;
     // Getting file name and cache type from the user
     cout << "Enter the file name: ";
     cin >> fileName;
