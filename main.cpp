@@ -108,6 +108,5 @@ int main() {
     cin >> cacheType;
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     readTraceFile(cacheType, "traces/" + fileName, address, hits, misses);
-    cout << convertToBinary("12bc");
     return 0;
 }
