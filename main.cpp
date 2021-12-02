@@ -283,27 +283,46 @@ int main() {
     string fileName = "gcc.trace";
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     // TODO: Change these hardcoded values back to allowing the user to choose
-    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock = 4; int numSets = 1; int replaceType = 1;
-    /*// Getting file name and cache type from the user
+    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock; int numSets; int replaceType = 1;
+    // Getting file name and cache type from the user
     cout << "Enter the file name: ";
     cin >> fileName;
+    fileName = "traces/" + fileName;
     cout << "Enter the cache type: ";
     cin >> cacheType;
-    */
+    cout << "Enter desired bytes per block: ";
+    cin >> bytesPerBlock;
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
-    readTraceFile(2,"traces/" + fileName, hits, misses, numBlock, bytesPerBlock, numSets);
-    cout << "Hits Set: " << hits << endl;
-    cout << "Misses Set: " << misses << endl;
-    cout << "Hit/Miss Set Ratio: " << (double) hits / (double) misses << endl;
-    hits = 0; misses = 0;
-    readTraceFile(2,"traces/" + fileName, hits, misses, numBlock, bytesPerBlock);
-    cout << "Hits Full: " << hits << endl;
-    cout << "Misses Full: " << misses << endl;
-    cout << "Hit/Miss Full Ratio: " << (double) hits / (double) misses << endl;
-    hits = 0; misses = 0;
-    readTraceFile("traces/" + fileName, hits, misses, bytesPerBlock, numSets);
-    cout << "Hits Direct: " << hits << endl;
-    cout << "Misses Direct: " << misses << endl;
-    cout << "Hit/Miss Direct Ratio: " << (double) hits / (double) misses << endl;
+    if (cacheType == 1) {
+        numSets = 1;
+        cout << "Enter desired number of blocks: ";
+        cin >> numBlock;
+        cout << "Replace Type? 1 (FIFO) ; 2 (LRU): ";
+        cin >> replaceType;
+        readTraceFile(replaceType, fileName, hits, misses, numBlock, bytesPerBlock);
+    }
+    else if (cacheType == 2) {
+        numBlock = 1;
+        cout << "Enter desired number of sets: ";
+        cin >> numSets;
+        readTraceFile(fileName, hits, misses, bytesPerBlock, numSets);
+    }
+    else if (cacheType == 3) {
+        cout << "Enter desired number of sets: ";
+        cin >> numSets;
+        cout << "Enter desired number of blocks: ";
+        cin >> numBlock;
+        cout << "Replace Type? 1 (FIFO) ; 2 (LRU): ";
+        cin >> replaceType;
+        readTraceFile(replaceType, fileName, hits, misses, numBlock, bytesPerBlock, numSets);
+    }
+    else {
+        throw runtime_error("Invalid Cache Type!");
+    }
+    // Printing the hits and misses results
+    cout << endl << "Hits: " << hits << endl;
+    cout << "Misses: " << misses << endl;
+    cout << "Hits/Misses Ratio: " << (double) hits / (double) misses << endl;
+
     return 0;
 }
