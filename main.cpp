@@ -111,7 +111,7 @@ void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPer
             currentTag += addressBinary[i];
         }
         if (tagMap.find(lineBits) != tagMap.end()) {
-            // if the tagMap does already have a value at this line bit
+            // if the tagMap does already have a value at this line-bit
             // check if the tag at this line bit matches with the currentTag, if so then it's a hit
             if (tagMap.find(lineBits)->second == currentTag) {
                 ++hits;
@@ -129,6 +129,7 @@ void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPer
         }
     }
 }
+
 // read function for fully-associative
 // TODO: Ask if my logic behind the LRU for fully-associative is correct
 void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock) {
@@ -185,6 +186,7 @@ void readTraceFile(const int& replaceType, const string& fileName, int& hits, in
         }
     }
 }
+
 // read function for set-associative
 void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock, const int& numSets) {
     // cache types: 3 (set-associative)
@@ -318,8 +320,9 @@ int main() {
     else {
         throw runtime_error("Invalid Cache Type!");
     }
+
     // Printing the hits and misses results
-    cout << endl << "Hits: " << hits << endl;
+    cout << "Hits: " << hits << endl;
     cout << "Misses: " << misses << endl;
     cout << "Hits/Misses Ratio: " << (double) hits / (double) misses << endl;
 
