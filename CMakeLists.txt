@@ -3,4 +3,4 @@ project(Cache_Simulation)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(Cache_Simulation main.cpp tag.cpp)
+add_executable(Cache_Simulation main.cpp)
