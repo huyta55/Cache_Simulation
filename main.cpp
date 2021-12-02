@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <queue>
+#include <list>
 
 using namespace std;
 
@@ -106,7 +106,7 @@ void readTraceFile(const int replaceType, const string& fileName, set<string> ta
     ifstream inFile(fileName);
     string addressLine;
     string addressBinary;
-    queue<string> tagsQ;
+    list<string> tagsList;
     while (getline(inFile, addressLine)) {
         istringstream stream(addressLine);
         string addressHex;
@@ -125,24 +125,32 @@ void readTraceFile(const int replaceType, const string& fileName, set<string> ta
         if (tags.find(currentTag) != tags.end()) {
             ++hits;
             if (replaceType == 2) {
-                // if LRU, move this current hit one to the back of the queue
-                tagsQ.push(tagsQ.front());
-                tagsQ.pop();
+                // go through the list and move the one that hits to the back of the list
+                list<string>::iterator iter = tagsList.begin();
+                while (iter != tagsList.end()) {
+                    if (*iter == currentTag) {
+                        string temp = *iter;
+                        tagsList.erase(iter);
+                        tagsList.push_back(temp);
+                        break;
+                    }
+                    ++iter;
+                }
             }
         }
         // else check whether the set is full
         else if (tags.size() >= numBlocks) {
             ++misses;
-            tags.erase(tags.find(tagsQ.front()));
-            tagsQ.pop();
+            tags.erase(tags.find(tagsList.front()));
+            tagsList.pop_front();
             tags.emplace(currentTag);
-            tagsQ.push(currentTag);
+            tagsList.push_back(currentTag);
         }
         // else tag is not known and set has space so add the new tag
         else {
             ++misses;
             tags.emplace(currentTag);
-            tagsQ.push(currentTag);
+            tagsList.push_back(currentTag);
         }
     }
 }
@@ -151,7 +159,7 @@ int main() {
     string fileName = "gcc.trace"; set<string> fullTags; map<string, string> tags;
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     // TODO: Change these hardcoded values back to allowing the user to choose
-    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 8; int bytesPerBlock = 8; int numSets = 1; int replaceType = 1;
+    int hits = 0; int misses = 0; int cacheType = 1; int numBlock = 3; int bytesPerBlock = 4; int numSets = 1; int replaceType = 1;
     /*// Getting file name and cache type from the user
     cout << "Enter the file name: ";
     cin >> fileName;
@@ -159,7 +167,7 @@ int main() {
     cin >> cacheType;
     */
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
-    readTraceFile(2, "traces/" + fileName, tags, hits, misses, bytesPerBlock, numSets);
+    readTraceFile(2, "traces/" + fileName, fullTags, hits, misses, numBlock, bytesPerBlock);
     cout << "Hits: " << hits << endl;
     cout << "Misses: " << misses << endl;
     cout << "Hit/Miss Ratio: " << (double) hits / (double) misses << endl;
