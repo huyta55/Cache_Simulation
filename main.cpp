@@ -9,7 +9,15 @@
 #include <vector>
 
 using namespace std;
+// Declaring functions
+string convertToBinary(const string& hex);
+void writeResults(const string& resultName, const int& replaceType, const vector<double>& ratio, const vector<int>& numBlocks, const vector<int>& bytesPerBlock, const vector<int>& numSets);
+void test(const int& replaceType, const string& fileName, const int& cacheType);
+void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPerBlock, int& numSets);
+void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock);
+void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock, const int& numSets);
 
+// Defining Functions
 string convertToBinary(const string& hex) {
     string binary;
     for (int i = 2; i < hex.size(); ++i) {
@@ -82,6 +90,88 @@ string convertToBinary(const string& hex) {
     return binary;
 }
 
+void writeResults(const string& resultName, const int& replaceType, const vector<double>& ratio, const vector<int>& numBlocks, const vector<int>& bytesPerBlock, const vector<int>& numSets) {
+    ofstream outFile(resultName + ".csv");
+    // Writing Data
+    for (int i = 0; i < ratio.size(); ++i) {
+        outFile << replaceType << "," << numSets[i] << "," << numBlocks[i] << "," << bytesPerBlock[i] << "," << ratio[i] << endl;
+    }
+}
+void test(const int& replaceType, const string& fileName, const int& cacheType) {
+    vector<int> numBlocksArray;
+    vector<int> numSetsArray;
+    vector<int> bytesPerBlockArray;
+    vector<double> ratioArray;
+    string resultName;
+    if (replaceType == 1) {
+        resultName = "FIFO_";
+    }
+    else {
+        resultName = "LRU_";
+    }
+    int hits = 0; int misses = 0;
+    if (cacheType == 1) {
+        // fully-associative
+        int numSets = 1;
+        int counter = 0;
+        for (int bytesPower = 2; bytesPower <= 4; bytesPower++) {
+            int bytesPerBlock = pow(2, bytesPower);
+            // loop for numBlocks
+            for (int nBlocks = 1; nBlocks <= 4; nBlocks += 2) {
+                bytesPerBlockArray.push_back(bytesPerBlock);
+                numSetsArray.push_back(numSets);
+                numBlocksArray.push_back(nBlocks);
+                readTraceFile(replaceType, fileName, hits, misses, nBlocks, bytesPerBlock);
+                double result = (double) hits / (double) misses;
+                ratioArray.push_back(result);
+                cout << counter++ << endl;
+            }
+        }
+        writeResults(resultName + "resultFA", replaceType, ratioArray, numBlocksArray, bytesPerBlockArray, numSetsArray);
+    }
+    else if (cacheType == 2) {
+        // direct-mapped
+        int nBlocks = 1;
+        int counter = 0;
+        for (int bytesPower = 2; bytesPower <= 4; bytesPower++) {
+            int bytesPerBlock = pow(2, bytesPower);
+            // loop for numBlocks
+            for (int numSets = 1; numSets <= 2; numSets++) {
+                bytesPerBlockArray.push_back(bytesPerBlock);
+                numSetsArray.push_back(numSets);
+                numBlocksArray.push_back(nBlocks);
+                readTraceFile(fileName, hits, misses, bytesPerBlock, numSets);
+                double result = (double) hits / (double) misses;
+                ratioArray.push_back(result);
+                cout << counter++ << endl;
+            }
+        }
+        writeResults("resultDM", replaceType, ratioArray, numBlocksArray, bytesPerBlockArray, numSetsArray);
+    }
+    else if (cacheType == 3) {
+        // set-associative
+        int counter = 0;
+        for (int bytesPower = 2; bytesPower <= 4; bytesPower++) {
+            int bytesPerBlock = pow(2, bytesPower);
+            for (int numSets = 1; numSets <= 2; numSets++) {
+                for (int nBlocks = 1; nBlocks <= 4; nBlocks += 2) {
+                    bytesPerBlockArray.push_back(bytesPerBlock);
+                    numSetsArray.push_back(numSets);
+                    numBlocksArray.push_back(nBlocks);
+                    readTraceFile(1, fileName, hits, misses, nBlocks, bytesPerBlock, numSets);
+                    double result = (double) hits / (double) misses;
+                    ratioArray.push_back(result);
+                    cout << counter++ << endl;
+                }
+                writeResults(resultName + "resultSA", replaceType, ratioArray, numBlocksArray, bytesPerBlockArray, numSetsArray);
+            }
+        }
+    }
+    else {
+        throw runtime_error("Invalid Cache Type");
+    }
+}
+
 // read function for direct-mapped
 void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPerBlock, int& numSets) {
     // cache types: 2 (direct-mapped)
@@ -100,10 +190,10 @@ void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPer
         addressBinary = convertToBinary(addressHex);
         // for direct map, tag is address - offset (bytesPerBlock) - log2(numSets);
         int lineOffset = log2(numSets);
-        int tagOffset = addressBinary.size() - bytesPerBlock - lineOffset;
+        int tagOffset = addressBinary.size() - log2(bytesPerBlock) - lineOffset;
         // grabbing the lineBits
         string lineBits;
-        for (int i = tagOffset; i < addressBinary.size() - bytesPerBlock; ++i) {
+        for (int i = tagOffset; i < addressBinary.size() - log2(bytesPerBlock); ++i) {
             lineBits += addressBinary[i];
         }
         string currentTag;
@@ -131,7 +221,6 @@ void readTraceFile(const string& fileName, int& hits, int& misses, int& bytesPer
 }
 
 // read function for fully-associative
-// TODO: Ask if my logic behind the LRU for fully-associative is correct
 void readTraceFile(const int& replaceType, const string& fileName, int& hits, int& misses, const int& numBlocks, const int& bytesPerBlock) {
     // cache types: 1 (fully associative)
     ifstream inFile(fileName);
@@ -148,8 +237,8 @@ void readTraceFile(const int& replaceType, const string& fileName, int& hits, in
         getline(stream, addressHex, ' ');
         // converting the addressHex to Binary
         addressBinary = convertToBinary(addressHex);
-        // for fully-associative, tag = address - offset(log2(2^bytesPerBlock) = address - bytesPerBlock
-        int tagIndex = addressBinary.size() - bytesPerBlock; string currentTag;
+        // for fully-associative, tag = address - offset(log2(2^bytesPerBlock) = address - log2(bytesPerBlock)
+        int tagIndex = addressBinary.size() - log2(bytesPerBlock); string currentTag;
         for (int i = 0; i < tagIndex; ++i) {
             currentTag += addressBinary[i];
         }
@@ -204,17 +293,17 @@ void readTraceFile(const int& replaceType, const string& fileName, int& hits, in
         getline(stream, addressHex, ' ');
         // converting the addressHex to Binary
         addressBinary = convertToBinary(addressHex);
-        // for set-associative tag = address - offset(bytesPerBlock) - setField(number of Sets)
+        // for set-associative tag = address - offset(log2(bytesPerBlock)) - setField(number of Sets)
         // getting the setField
         int setIndex = log2(numSets);
         // getting the set
         string currentSet;
-        for (int i = addressBinary.size() - bytesPerBlock - setIndex; i < addressBinary.size() - bytesPerBlock; ++i) {
+        for (int i = addressBinary.size() - log2(bytesPerBlock) - setIndex; i < addressBinary.size() - log2(bytesPerBlock); ++i) {
             currentSet += addressBinary[i];
         }
         // grabbing the tag
         string currentTag;
-        for (int i = 0; i < addressBinary.size() - bytesPerBlock - setIndex; ++i) {
+        for (int i = 0; i < addressBinary.size() - log2(bytesPerBlock) - setIndex; ++i) {
             currentTag += addressBinary[i];
         }
         // Checking whether the cache is full
@@ -282,11 +371,11 @@ void readTraceFile(const int& replaceType, const string& fileName, int& hits, in
 
 int main() {
     // Initiating the parameters for the cache simulation
-    string fileName = "gcc.trace";
+    string fileName = "traces/gcc.trace";
     // cache types: 1 (fully associative); 2 (direct-mapped); 3 (set-associative)
     int hits = 0; int misses = 0; int cacheType; int numBlock; int bytesPerBlock; int numSets; int replaceType = 1;
     // Getting file name and cache type from the user
-    cout << "Enter the file name: ";
+    /*cout << "Enter the file name: ";
     cin >> fileName;
     fileName = "traces/" + fileName;
     cout << "Enter the cache type: ";
@@ -320,11 +409,16 @@ int main() {
     else {
         throw runtime_error("Invalid Cache Type!");
     }
+    */
+    // Hard-coding for data gathering
+    test(1, fileName, 2);
+    test(1, fileName, 1);
+    test(1, fileName, 3);
+    test(2, fileName, 1);
+    test(2, fileName, 3);
 
-    // Printing the hits and misses results
-    cout << "Hits: " << hits << endl;
-    cout << "Misses: " << misses << endl;
-    cout << "Hits/Misses Ratio: " << (double) hits / (double) misses << endl;
+
+
 
     return 0;
 }
